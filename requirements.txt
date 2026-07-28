@@ -1,2 +1,5 @@
-# Phase 1은 표준 라이브러리 + gh CLI만 사용. 아래는 이후 Phase(SFT/RL)용.
+# Phase 1은 표준 라이브러리 + gh CLI만 사용.
+# 검색(RAG) 단계: sentence-transformers, numpy
+sentence-transformers
+numpy
 requests

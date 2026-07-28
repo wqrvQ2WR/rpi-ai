@@ -14,8 +14,14 @@ EXCLUDE_KEYWORDS = [
     "quick start guide", "troubleshooting guide", "frequently asked questions",
     "teachers guide", "teachers classroom guide", "parents guide",
     "addons guide", "guide for using raspberry pis in the classroom",
-    "set up files for", "resource style",
+    "set up files for", "resource style", "hardware guide", "software guide",
+    "physical computing guide", "noobs install", "edu image",
+    "recruiting mentors", "staging", "hj test", "demo programs",
+    "cambridgegcsecomputing", "redirect only", "patrick all blocks test",
+    "test rfm translations", "indieweb",
 ]
+
+EXCLUDE_TITLE_PREFIXES = ("editor ", "ada cs anvil ")
 
 CATEGORY_RULES = [
     ("네트워크/서버", ["dns", "vpn", "server", "hosting", "nas", "proxy", "kubernetes",
@@ -135,8 +141,11 @@ def parse_official_tsv():
         description = description.strip()
         if not description or len(description) < 15:
             continue
-        low = f"{name} {description}".lower()
+        name_spaced = name.replace("-", " ").lower()
+        low = f"{name_spaced} {description}".lower()
         if any(kw in low for kw in EXCLUDE_KEYWORDS):
+            continue
+        if name_spaced.startswith(EXCLUDE_TITLE_PREFIXES):
             continue
         title = name.replace("-", " ").title()
         url = f"https://github.com/raspberrypilearning/{name}"
