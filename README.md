@@ -1,8 +1,11 @@
-# RPi 용도 추천 AI — Phase 1 데이터 수집
+# RPi 용도 추천 AI
 
-라즈베리파이 프로젝트/OS 추천 데이터셋. 계획서(`계획.md` 등)의 Phase 1 산출물.
+라즈베리파이 프로젝트/OS를 추천해주는 AI. 오픈모델(Qwen2.5-1.5B) + SFT + RL + 구글 무료
+리소스로 $0 운영을 목표로 함.
 
-## 실행
+## Phase 1 — 데이터 수집
+
+### 실행
 
 ```bash
 gh api orgs/raspberrypilearning/repos --paginate -q '.[] | select(.description != null) | [.name, (.archived|tostring), .description] | @tsv' > data/raspberrypilearning_repos_all.tsv
@@ -32,3 +35,21 @@ Hackaday.io API는 dev.hackaday.io 계정으로 API 키를 발급받아야 해�
 - 426개 (계획서 목표 500+에 약간 못 미침) — Reddit/Hackaday/Instructables 추가하면 채울 수 있음
 - "기타" 카테고리가 136개(32%)로 큼 — 키워드 룰 확장 여지 있음
 - human_query/ai_expected_output이 영문 제목/설명 그대로 들어가 있어 완전한 한국어 문장이 아님
+
+## Phase 2 — SFT
+
+`scripts/prepare_sft_data.py`로 Phase 1 데이터셋을 Qwen2.5 채팅 포맷(JSONL, `messages` 컬럼)으로
+변환해 `data/sft_train.jsonl`(384개) / `data/sft_val.jsonl`(42개)로 분리.
+
+```bash
+python3 scripts/prepare_sft_data.py
+```
+
+학습은 로컬 GPU가 없어서 [notebooks/phase2_sft_colab.ipynb](notebooks/phase2_sft_colab.ipynb)를
+Google Colab(T4 GPU, 무료)에서 직접 실행. 저장소가 공개라 아래 링크로 바로 열림:
+
+https://colab.research.google.com/github/wqrvQ2WR/rpi-ai/blob/main/notebooks/phase2_sft_colab.ipynb
+
+노트북 내용: `Qwen/Qwen2.5-1.5B-Instruct`를 LoRA(peft) + TRL `SFTTrainer`로 fp16 학습(T4는
+bf16 텐서코어가 없어서 fp16 사용) → LoRA 어댑터 저장 → 베이스 모델과 병합 → 간단 추론 확인 →
+결과 zip 다운로드. GGUF 변환(Phase 5)은 이 병합된 모델을 입력으로 별도 진행.
