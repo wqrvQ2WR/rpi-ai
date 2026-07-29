@@ -97,5 +97,31 @@ python3 scripts/rag_test.py "집에서 광고 없이 인터넷 쓰고 싶어" --
 테스트 결과 답변에 등장한 URL이 전부 검색 후보 안에 있는 진짜 링크로 확인됨 — RAG 구조로
 링크 할루시네이션 문제가 해결됨.
 
+## Phase 3 — Reward Model
+
+계획서는 Gemini API를 가정했지만 실제로는 **DeepSeek API**(OpenAI 호환, `.env`의
+`DEEPSEEK_API_KEY`)로 대체. 점수 체계는 계획서 그대로 (+3/+1/-1/-3).
+
+`scripts/reward_model.py`는 2단계로 채점한다:
+1. **grounding check (규칙 기반, 무료)**: 답변에 나온 URL이 검색 후보 목록에 없으면
+   API 호출 없이 바로 -3. RAG 구조에서 가장 심각한 실패(할루시네이션)를 결정적으로 잡아냄.
+2. grounding을 통과하면 DeepSeek을 판정자로 써서 정확성/유용성/실용성 채점.
+
+```bash
+python3 scripts/reward_model.py "집에서 광고 없이 인터넷 쓰고 싶어"          # 정상 케이스
+python3 scripts/reward_model.py "집에서 광고 없이 인터넷 쓰고 싶어" --fake-url  # -3 확인용
+python3 scripts/evaluate_batch.py   # 8개 질문 배치로 검색->생성->채점 전체 파이프라인 실행
+```
+
+**배치 평가 결과 (2026-07-29, 로컬 Ollama `qwen2.5:1.5b` 베이스 모델 기준)**: 평균 리워드
+**0.50 / 3.0** (계획서 목표 2.0 이상에는 못 미침). URL 할루시네이션은 이제 없지만, 이
+1.5B 베이스 모델(RAG 전용으로 학습되지 않음)이 (a) 후보 중 최선이 아닌 걸 고르거나
+(b) 후보에 없는 세부사항을 지어내거나(제목 오타, "AI 기술" 같은 근거 없는 수식어 추가)
+(c) 가끔 추천을 거부하는 등 답변 품질 자체는 아직 부족함. 결과는
+`data/phase3_eval_results.json`에 저장됨.
+
+→ 여기서 나온 0.50이 Phase 4 RL(PPO/GRPO)로 개선해야 할 베이스라인. Colab에서 SFT한
+모델(Drive에 저장됨)로도 같은 배치 평가를 돌려서 SFT가 이 점수를 얼마나 올렸는지 비교해보면 좋음 (아직 안 함).
+
 이 검색 품질을 확인한 뒤, 필요하면 "검색된 실제 항목 + 질문 → 그 항목을 설명하는 답변"
 형태로 SFT 데이터를 다시 만들어 재학습하는 게 다음 단계 (아직 미착수).
