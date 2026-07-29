@@ -1,5 +1,6 @@
 # Phase 1은 표준 라이브러리 + gh CLI만 사용.
-# 검색(RAG) 단계: sentence-transformers, numpy
+# 검색(RAG) 단계: sentence-transformers(의미검색), rank_bm25(키워드검색), numpy
 sentence-transformers
+rank_bm25
 numpy
 requests
