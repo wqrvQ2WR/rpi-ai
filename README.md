@@ -123,5 +123,33 @@ python3 scripts/evaluate_batch.py   # 8개 질문 배치로 검색->생성->채�
 → 여기서 나온 0.50이 Phase 4 RL(PPO/GRPO)로 개선해야 할 베이스라인. Colab에서 SFT한
 모델(Drive에 저장됨)로도 같은 배치 평가를 돌려서 SFT가 이 점수를 얼마나 올렸는지 비교해보면 좋음 (아직 안 함).
 
-이 검색 품질을 확인한 뒤, 필요하면 "검색된 실제 항목 + 질문 → 그 항목을 설명하는 답변"
-형태로 SFT 데이터를 다시 만들어 재학습하는 게 다음 단계 (아직 미착수).
+## Phase 4 — GRPO (강화학습)
+
+**시작 모델은 Phase 2에서 SFT한 모델이 아니라 베이스 `Qwen/Qwen2.5-1.5B-Instruct`로
+다시 시작한다** — Phase 2 SFT는 "제목+URL을 통째로 암기"하는 템플릿을 학습해서 이번
+RAG 태스크(주어진 후보 중에서 고르기)에는 오히려 방해가 될 수 있다고 판단.
+
+`scripts/prepare_grpo_data.py`로 학습 질문(SFT 학습 데이터의 human_query 150개)마다
+`search.py`로 실제 후보를 미리 붙여서 `data/grpo_prompts.jsonl`을 만든다 (컬럼:
+`prompt`=대화 메시지, `candidates`=검색 후보 JSON 문자열). 학습 중에 매번 검색을
+다시 안 돌리기 위해 미리 붙여두는 방식.
+
+```bash
+python3 scripts/prepare_grpo_data.py
+```
+
+학습은 [notebooks/phase4_grpo_colab.ipynb](notebooks/phase4_grpo_colab.ipynb)에서
+TRL `GRPOTrainer` + LoRA로 진행:
+
+https://colab.research.google.com/github/wqrvQ2WR/rpi-ai/blob/main/notebooks/phase4_grpo_colab.ipynb
+
+- Reward function은 Phase 3와 동일한 2단계(규칙 기반 grounding check + DeepSeek judge)를
+  노트북 안에 그대로 재구현 — completion마다 grounding 통과 시 DeepSeek을 호출하므로
+  순수 로컬 RL보다 느림. 프롬프트 수/epoch/num_generations를 조절해서 속도-비용 균형을 잡을 것.
+- DeepSeek API 키는 Colab Secrets(왼쪽 열쇠 아이콘)에 `DEEPSEEK_API_KEY`로 등록하거나,
+  실행 시 직접 입력 — 노트북 파일에는 저장 안 됨.
+- 학습 전/후로 held-out eval set(마지막 10개 프롬프트)에 대한 평균 리워드를 비교해서
+  GRPO가 실제로 Phase 3의 0.50 베이스라인보다 나아졌는지 확인하는 셀 포함.
+- 결과는 LoRA 어댑터 저장 -> 베이스 모델과 병합 -> Google Drive(`MyDrive/rpi-ai-grpo-merged`)에 저장.
+
+**아직 실행 안 함** — Colab에서 실제로 돌려서 학습 전/후 리워드를 비교하는 게 다음 단계.
